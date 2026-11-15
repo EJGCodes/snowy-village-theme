@@ -1,0 +1,5 @@
+{
+  "name": "snowy-village",
+  "owner": { "name": "EJGCodes" },
+  "plugins": [{ "name": "snowy-village", "source": "./" }]
+}
