@@ -3,7 +3,7 @@ import { makeColors } from './make-colors.js'
 // Night palette pulled from the scene: deep sky navy for surfaces, snow-white
 // text, aurora teal for accents, lamp-light amber for warnings.
 export const { theme: COLORS, problems: COLOR_PROBLEMS } = makeColors({
-  label: 'Aurora Village',
+  label: 'Snowy Village',
   only: 'dark',
   roles: {
     accent: '#2cc7a6',   // aurora teal

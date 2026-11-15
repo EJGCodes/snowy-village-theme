@@ -12,7 +12,7 @@ const LOOK: ThemeSetArgs = {
   },
 }
 
-const COMMAND = 'snowy-theme'
+const COMMAND = 'snowy-village'
 // Whether the theme is on, kept between sessions. Unset counts as on.
 const SWITCH = 'on'
 
@@ -24,14 +24,21 @@ async function apply($: EngineInterface): Promise<string> {
   }
   const set = await $.theme.set(LOOK)
 
-  return set.isDrawn ? 'Snowy Village theme is on.' : `Snowy Village theme is set, but not drawn: ${set.reason}`
+  // Not drawn but with a request id means the theme stands and only waits for
+  // an app window to attach, which is normal. Only a result with no request id
+  // is a real failure.
+  if (set.isDrawn || set.requestId !== undefined) {
+    return 'Snowy Village theme is on.'
+  }
+
+  return `Snowy Village theme could not be set: ${set.reason}`
 }
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: COMMAND,
-      description: 'Turn the Snowy Village theme on, or off with "/snowy-theme off"',
+      description: 'Turn the Snowy Village theme on, or off with "/snowy-village off"',
       argumentHint: '[on|off]',
     })
     if ((await $.store.get(SWITCH)) !== false) {
@@ -48,10 +55,10 @@ export const register: Register = on => {
       await $.store.set(SWITCH, false)
       await $.theme.clear()
 
-      return { text: 'Snowy Village theme is off. Type /snowy-theme to turn it back on.' }
+      return { text: 'Snowy Village theme is off. Type /snowy-village to turn it back on.' }
     }
     if (word !== '' && word !== 'on') {
-      return { text: 'Use /snowy-theme to turn the theme on, or /snowy-theme off to turn it off.' }
+      return { text: 'Use /snowy-village to turn the theme on, or /snowy-village off to turn it off.' }
     }
     await $.store.set(SWITCH, true)
 
@@ -70,7 +77,7 @@ export const register: Register = on => {
     return (
       <Svg
         source={SCENE}
-        alt="Pixel-art night: green aurora over snowy mountains and a lakeside village, mirrored in the lake"
+        alt="Pixel-art night theme: green aurora over snowy mountains over a lakeside village, all reflected across the giant lake."
         isInteractive
       />
     )
