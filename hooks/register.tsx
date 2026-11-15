@@ -6,13 +6,13 @@ import { SCENE } from './scene'
 const LOOK: ThemeSetArgs = {
   colors: COLORS,
   backdrop: {
-    scene: 'aurora-village',
+    scene: 'snowy-village',
     // A night-blue frost over the art, light enough to keep the scene visible.
     glass: { blur: 2, tint: "#081526", opacity: 0.15 },
   },
 }
 
-const COMMAND = 'aurora'
+const COMMAND = 'snowy-theme'
 // Whether the theme is on, kept between sessions. Unset counts as on.
 const SWITCH = 'on'
 
@@ -24,14 +24,14 @@ async function apply($: EngineInterface): Promise<string> {
   }
   const set = await $.theme.set(LOOK)
 
-  return set.isDrawn ? 'Aurora Village theme is on.' : `Aurora Village theme is set, but not drawn: ${set.reason}`
+  return set.isDrawn ? 'Snowy Village theme is on.' : `Snowy Village theme is set, but not drawn: ${set.reason}`
 }
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: COMMAND,
-      description: 'Turn the Aurora Village theme on, or off with "/aurora off"',
+      description: 'Turn the Snowy Village theme on, or off with "/snowy-theme off"',
       argumentHint: '[on|off]',
     })
     if ((await $.store.get(SWITCH)) !== false) {
@@ -48,10 +48,10 @@ export const register: Register = on => {
       await $.store.set(SWITCH, false)
       await $.theme.clear()
 
-      return { text: 'Aurora Village theme is off. Type /aurora to turn it back on.' }
+      return { text: 'Snowy Village theme is off. Type /snowy-theme to turn it back on.' }
     }
     if (word !== '' && word !== 'on') {
-      return { text: 'Use /aurora to turn the theme on, or /aurora off to turn it off.' }
+      return { text: 'Use /snowy-theme to turn the theme on, or /snowy-theme off to turn it off.' }
     }
     await $.store.set(SWITCH, true)
 
@@ -62,7 +62,7 @@ export const register: Register = on => {
     if (e.surface !== 'desktop' && e.surface !== 'mobile') {
       return next(e)
     }
-    if (e.props.scene !== 'aurora-village') {
+    if (e.props.scene !== 'snowy-village') {
       return next(e)
     }
     const { Svg } = $.ui.resolve(e)
