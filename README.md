@@ -13,7 +13,7 @@ shows no theme.
 At the prompt of a Claude Code terminal session:
 
 ```
-/plugin install snowy-village --marketplace EJGCodes/snowy-village-theme
+/plugin install snowy-village-theme --marketplace EJGCodes/snowy-village-theme
 ```
 
 Answer `y` to add the marketplace, then press Enter to install it for your user.
@@ -21,7 +21,7 @@ Answer `y` to add the marketplace, then press Enter to install it for your user.
 Or from a shell:
 
 ```
-claude plugin install snowy-village --marketplace EJGCodes/snowy-village-theme
+claude plugin install snowy-village-theme --marketplace EJGCodes/snowy-village-theme
 ```
 
 ## How to use
