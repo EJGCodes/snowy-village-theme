@@ -277,6 +277,31 @@ def build_mountains():
                 g[y][x] = pick(SNOW_PAL, light)
             if depth < 1.3:
                 g[y][x] = SNOW_PAL[5] if sl < 0.4 else SNOW_PAL[3]
+    # a lone bright snow pixel with dark rock on all four sides reads as a stray
+    # light, so it takes the rock's color
+    for y in range(1, SHORE - 1):
+        for x in range(1, W - 1):
+            if ridge(LEFT, x) is None or g[y][x] not in SNOW_PAL[4:]:
+                continue
+            around = [g[y][x - 1], g[y][x + 1], g[y - 1][x], g[y + 1][x]]
+            if all(c in ROCK_PAL for c in around):
+                g[y][x] = max(set(around), key=around.count)
+    # hand touch-ups: two bright pixels poking up from a snow patch into dark rock
+    for x, y in ((20, 119), (25, 119)):
+        if g[y][x] == SNOW_PAL[5] and g[y - 1][x] in ROCK_PAL:
+            g[y][x] = g[y - 1][x]
+    # and a small too-bright patch above them, shaped like a sideways T, toned
+    # down to the snow just left of it
+    for x, y in ((20, 112), (20, 113), (21, 113), (20, 114)):
+        if g[y][x] == SNOW_PAL[5]:
+            g[y][x] = SNOW_PAL[4]
+    # and the patch of gray rock between it and the snow below, filled with
+    # snow: the softer shade up top and along the left, the brighter shade
+    # where it meets the bright snow below
+    for y in range(114, 120):
+        for x in range(20, 25):
+            if g[y][x] == ROCK_PAL[3]:
+                g[y][x] = SNOW_PAL[4] if x == 20 or y <= 116 else SNOW_PAL[5]
     # right mountain: mostly gray rock, with snow on the top and in streaks
     right_spurs = [(258, 0.5), (276, 0.3), (300, 0.45), (330, 0.35), (356, 0.5),
                    (244, 0.2), (228, 0.35), (316, 0.6)]
@@ -302,6 +327,11 @@ def build_mountains():
                 g[y][x] = pick(GRAY_PAL, light * 0.95)
             if depth < 1.3:
                 g[y][x] = SNOW_PAL[5] if sl > -0.4 else SNOW_PAL[3]
+    # hand touch-up: a small L of snow on the rock above the last cabin,
+    # filled with the rock around it
+    for x, y in ((364, 126), (364, 127), (364, 128), (365, 128)):
+        if g[y][x] in SNOW_PAL:
+            g[y][x] = GRAY_PAL[4]
     return g
 
 
