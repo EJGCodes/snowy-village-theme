@@ -24,10 +24,13 @@ Or from a shell:
 claude plugin install snowy-village --marketplace EJGCodes/snowy-village-theme
 ```
 
-## Use
+## How to use
 
-- `/aurora` turns the theme on.
-- `/aurora off` turns it off and returns the app to its normal look.
+- `/snowy-village` turns the theme on.
+- `/snowy-village off` turns the theme off and returns the app to its normal look.
+- `/snowy-village stats` shows or hides a small pixel-art sign above the prompt box
+  with the session's model, turns, tool calls, context use and 5-hour usage limit,
+  plus bars for the weekly usage limit and what fills the context window.
 
 The mod remembers the last choice, so the theme is on in new sessions unless it
 was last turned off.
@@ -44,5 +47,5 @@ It rewrites `hooks/scene.ts` and a `tools/preview.html` you can open in a
 browser. A scene can be at most 131,072 characters; the script reports the
 size and refuses to write one that is too big.
 
-The scene is animated (the aurora flows, stars twinkle, chimneys smoke, Clawd
-bobs and sometimes waves). Some builds of the desktop app show the scene still.
+The scene is animated (the aurora waves, stars twinkle, chimneys smoke, and Clawd
+sometimes waves to you). Make sure your app is updated to see it animated!

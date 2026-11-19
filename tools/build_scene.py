@@ -1,4 +1,4 @@
-"""Generates the pixel-art aurora scene as an animated SVG.
+"""Generates the pixel-art snowy village scene as an animated SVG.
 
 Run:  python tools/build_scene.py
 Writes hooks/scene.ts (the SVG as a string constant) and tools/preview.html.
@@ -839,6 +839,19 @@ def anim(attr, values, dur, begin=0.0, times=None, discrete=True):
     return out + '/>'
 
 
+def glide(values, dur, begin=0.0):
+    """A smooth translate through `values` ("x y;x y;..."), easing in and out of
+    each one, instead of jumping a whole pixel at a time."""
+    n = len(values.split(';'))
+    times = ';'.join(f'{k / (n - 1):.4f}'.rstrip('0').rstrip('.') or '0' for k in range(n))
+    splines = ';'.join(['.45 0 .55 1'] * (n - 1))
+    out = (f'<animateTransform attributeName="transform" type="translate" values="{values}" '
+           f'dur="{dur}s" repeatCount="indefinite" calcMode="spline" keyTimes="{times}" keySplines="{splines}"')
+    if begin:
+        out += f' begin="-{begin:g}s"'
+    return out + '/>'
+
+
 def dots(points, attrs='', inner=''):
     seen, rects = set(), []
     for x, y, c in points:
@@ -876,8 +889,8 @@ def diagnostic():
 def clawd(x0, yb):
     """Mini Clawd sitting in the boat in a light green beanie. x0 is its left
     edge (arms included), yb the bottom row of its body. Its legs reach down
-    behind the hull, so they show only when it bobs up.
-    It blinks, bobs up now and then, and sometimes waves as it does."""
+    behind the hull, out of sight.
+    It blinks, and waves now and then as the boat drifts along."""
     body, dark = '#d97757', '#2b1a14'
     beanie, brim, pom = '#b6f0c2', '#7fd49a', '#f0fff2'
     r = [(x0 + 1, yb - 3, 8, 4, body),                # body
@@ -892,17 +905,18 @@ def clawd(x0, yb):
         box(g, x, y, x + w - 1, y + h - 1, c)
     blink = (f'<path opacity="0" fill="{body}" d="M{x0 + 2} {yb - 2}h1v1h-1zM{x0 + 7} {yb - 2}h1v1h-1z">'
              + anim('opacity', '0;1;0', 4.6, 0, '0;.94;.98') + '</path>')
-    # A scene cannot roll dice, so the "1 in 4" is a fixed pattern that does not
-    # look regular: Clawd bobs up every 6.5 s, and waves on 3 of every 12 bobs.
-    period, up, bobs, waves = 6.5, 0.9, 12, (1, 6, 8)
-    total = period * bobs
+    # Waves at uneven moments of a 78 s loop, each lasting 2 s. The arm goes up
+    # and stays raised for the whole wave; only the hand swings side to side.
+    total, wave, swings = 78.0, 2.0, 5
     f = lambda sec: f'{sec / total:.4f}'.rstrip('0').rstrip('.')
-    shown = {'down': [(0, 1)], 'a': [(0, 0)], 'b': [(0, 0)]}
-    for k in waves:
-        t0 = k * period + (period - up)               # the moment this bob goes up
-        shown['down'] += [(t0, 0), (t0 + up, 1)]
-        shown['a'] += [(t0, 1), (t0 + up / 3, 0), (t0 + 2 * up / 3, 1), (t0 + up, 0)]
-        shown['b'] += [(t0 + up / 3, 1), (t0 + 2 * up / 3, 0)]
+    shown = {'down': [(0, 1)], 'up': [(0, 0)], 'out': [(0, 0)], 'in': [(0, 0)]}
+    for t0 in (7, 23, 34, 52, 67):
+        shown['down'] += [(t0, 0), (t0 + wave, 1)]
+        shown['up'] += [(t0, 1), (t0 + wave, 0)]
+        step = wave / swings
+        for k in range(swings):                       # hand out, in, out, in, out
+            t = t0 + k * step
+            shown['out' if k % 2 == 0 else 'in'] += [(t, 1), (t + step, 0)]
 
     def arm(d, key, start):
         keys = shown[key]
@@ -910,16 +924,17 @@ def clawd(x0, yb):
                 + anim('opacity', ';'.join(str(v) for _, v in keys), total, 0,
                        ';'.join(f(t) for t, _ in keys)) + '</path>')
 
-    arms = (arm(f'M{x0 + 9} {yb - 1}h1v1h-1z', 'down', 1)
-            + arm(f'M{x0 + 9} {yb - 3}h1v1h-1zM{x0 + 10} {yb - 4}h1v1h-1z', 'a', 0)
-            + arm(f'M{x0 + 9} {yb - 3}h2v1h-2z', 'b', 0))
-    bob = anim('move', '0 0;0 -1', period, 0, f'0;{(period - up) / period:.4f}')
-    return '<g>' + encode(g) + blink + arms + bob + '</g>'
+    arms = (arm(f'M{x0 + 9} {yb - 1}h1v1h-1z', 'down', 1)          # arm resting
+            # the raised arm: one pixel at the shoulder, held for the whole wave;
+            # nothing is drawn below it, where the resting arm was
+            + arm(f'M{x0 + 9} {yb - 2}h1v1h-1z', 'up', 0)
+            + arm(f'M{x0 + 10} {yb - 3}h1v1h-1z', 'out', 0)        # hand tipped up and out
+            + arm(f'M{x0 + 10} {yb - 2}h1v1h-1z', 'in', 0))        # hand straight out to the side
+    return '<g>' + encode(g) + blink + arms + '</g>'
 
 
 def boat(x0=214, y0=SHORE + 4):
-    """A moored wooden rowboat, side on: planked hull, an oar,
-    and a rope to the shore. y0 is the gunwale row."""
+    """A wooden rowboat, side on: planked hull and an oar. y0 is the gunwale row."""
     r = []                                    # (x, y, w, h, color)
     wood = ['#8a5c38', '#6b4226', '#55341c', '#3d2614', '#2a1a10']
     # reflection first, so the hull sits on top of it
@@ -943,17 +958,42 @@ def boat(x0=214, y0=SHORE + 4):
         r += [(x0 + 3 + k, y0 - 4 + (k + 1) // 2, 1, 1, '#c9a06a')]
     r += [(x0 + 2, y0 - 5, 1, 1, '#c9a06a'), (x0 + 12, y0 + 1, 2, 1, '#a87446'),
           (x0 + 13, y0 + 2, 2, 2, '#a87446')]
-    # mooring rope from the bow up to the shore
-    for k in range(1, 6):
-        r += [(x0 + 27 + k, y0 - 2 - k, 1, 1, '#8a7a60')]
-    # the water parting around the hull
-    r += [(x0 - 3, y0 + 4, 5, 1, '#5d8ea3'), (x0 + 25, y0 + 4, 6, 1, '#5d8ea3'),
-          (x0 - 1, y0 + 5, 3, 1, '#3c6177'), (x0 + 26, y0 + 5, 3, 1, '#3c6177')]
     g = new_grid()                            # paint in order, so later parts overlap earlier
     for x, y, w, h, c in r:
         box(g, x, y, x + w - 1, y + h - 1, c)
     out += clawd(x0 + 12, y0 - 1) + encode(g)    # Clawd first: the hull hides its legs
     return out
+
+
+def snow():
+    """Light snowfall over the whole scene: three thin layers of flakes falling
+    at different speeds, each swaying a little from side to side. Every layer
+    is drawn twice, one screen apart, so the fall loops without a seam."""
+    rnd = random.Random(44)
+    out = ''
+    for count, color, opacity, fall, sway in ((34, '#ffffff', '.85', 19, 5.5),
+                                              (40, '#d6e4f2', '.6', 27, 7.5),
+                                              (44, '#a9bfd6', '.45', 38, 9.5)):
+        flakes = []
+        for _ in range(count):
+            x, y = rnd.randrange(W), rnd.randrange(H)
+            flakes += [(x, y, 1, 1, color), (x, y - H, 1, 1, color)]
+        out += (f'<g opacity="{opacity}"><g>{paths(flakes)}'
+                + anim('move', f'0 0;0 {H}', fall, round(rnd.uniform(0, fall), 1), discrete=False)
+                + '</g>'
+                + anim('move', '0 0;3 0;0 0;-3 0;0 0', sway, discrete=False)
+                + '</g>')
+    return out
+
+
+def window_lights(points):
+    """The windows' light: steady, no flicker."""
+    return dots(points)
+
+
+def lamp_glows(points):
+    """The lamp posts' glow: steady, no flicker."""
+    return dots(points, ' opacity=".45"')
 
 
 # ---------------------------------------------------------------- build ----
@@ -987,70 +1027,73 @@ def build(report=False):
         bs += [(x, y, '#ffffff'), (x - 1, y, '#8fb0e0'), (x + 1, y, '#8fb0e0'),
                (x, y - 1, '#8fb0e0'), (x, y + 1, '#8fb0e0')]
     star_svg += dots(bs, inner=anim('opacity', TWINKLE, 5.5, 0.8))
-    # A shooting star every 26 s: it enters past the right edge near the top and
-    # takes 4.5 s to cross the whole sky, leaving past the left edge.
-    cycle, flight = 26, 4.5
+    # A shooting star every 45 s: it enters past the right edge near the top and
+    # takes 12 s to cross the whole sky, leaving past the left edge. A bright
+    # round comet with a soft glow.
+    cycle, flight = 45, 12
     t0 = f'{1 - flight / cycle:.4f}'
-    shoot = ('<g opacity="0">'
-             '<path fill="#ffffff" d="M392 8h3v1h-3z"/>'
-             '<path fill="#e8f6ff" d="M395 7h4v1h-4z"/>'
-             '<path fill="#9fc4e8" d="M399 6h4v1h-4z"/>'
-             '<path fill="#5d87b5" d="M403 5h4v1h-4z"/>'
+    # drawn near the grid's corner (it starts off-screen, past the grid's edge)
+    # and moved to its starting point, just past the right edge of the sky
+    # a small round comet: a bright core in a soft circular glow, no tail
+    star = new_grid()
+    hx, hy = 4, 10
+    for dx, dy in [(-1, -2), (0, -2), (1, -2), (-2, -1), (2, -1), (-2, 0), (2, 0),
+                   (-2, 1), (2, 1), (-1, 2), (0, 2), (1, 2)]:
+        put(star, hx + dx, hy + dy, '#3f6a96')         # outer glow ring
+    for dx, dy in [(-1, -1), (1, -1), (-1, 1), (1, 1)]:
+        put(star, hx + dx, hy + dy, '#8fbce6')         # inner glow
+    for dx, dy in [(0, -1), (-1, 0), (1, 0), (0, 1)]:
+        put(star, hx + dx, hy + dy, '#dff0ff')
+    put(star, hx, hy, '#ffffff')                       # the core
+    shoot = ('<g opacity="0"><g transform="translate(388 -2)">' + encode(star) + '</g>'
              + anim('opacity', '0;0;1;1;0', cycle, 20, f'0;{t0};{float(t0) + 0.01:.4f};.985;1', discrete=False)
-             + anim('move', '0 0;0 0;-430 108', cycle, 20, f'0;{t0};1', discrete=False)
+             + anim('move', '0 0;0 0;-440 108', cycle, 20, f'0;{t0};1', discrete=False)
              + '</g>')
 
     rise = ';'.join(f'{k} {2 - 2 * k}' for k in range(8))
     fade = '0;.75;.7;.6;.45;.3;.2;.1'
     smoke = ''
-    for i, (sx, sy) in enumerate(fx['smoke']):
+    smoke_rnd = random.Random(17)
+    for sx, sy in fx['smoke']:
+        dur = round(smoke_rnd.uniform(5.8, 9.4), 1)  # each chimney its own speed
+        start = smoke_rnd.uniform(0, dur)               # and its own starting point
         for p in range(2):
-            begin = round((i * 1.7 + p * 3.5) % 7, 1)
+            begin = round((start + p * dur / 2) % dur, 1)
             smoke += (f'<path opacity="0" fill="#9db0c6" d="M{sx} {sy}h2v2h-2zM{sx + 1} {sy - 1}h2v1h-2z">'
-                      + anim('opacity', fade, 7, begin) + anim('move', rise, 7, begin) + '</path>')
+                      + anim('opacity', fade, dur, begin) + anim('move', rise, dur, begin) + '</path>')
 
     # the aurora: vertical strips that rise and fall one after another, so a
     # wave runs along the curtain, and the whole curtain slowly brightens and dims
-    aw, aurora_svg, aurora_clips = 48, '', ''
+    aw, aurora_svg = 48, ''
     for n, ax in enumerate(range(0, W, aw)):
-        aurora_clips += f'<clipPath id="a{n}"><rect x="{ax}" y="-4" width="{aw}" height="{SHORE + 4}"/></clipPath>'
+        strip = [[c if ax <= x < ax + aw else None for x, c in enumerate(row)] for row in aur]
         aurora_svg += (
-            f'<g clip-path="url(#a{n})"><g><use href="#au"/>'
-            + anim('move', '0 0;0 -1;0 -2;0 -3;0 -2;0 -1', 7.2, round(n * 0.9, 1))
-            + '</g></g>')
+            '<g>' + encode(strip, SHORE)
+            + glide('0 0;0 -3;0 0', 15, round(n * 1.9, 1))
+            + '</g>')
     aurora_svg = '<g>' + aurora_svg + anim('opacity', '1;.78;1', 9, discrete=False) + '</g>'
 
     parts = {
         'sky': encode(sky, SHORE),
         'aurora': aurora_svg,
-        'stars': star_svg + shoot,
+        'stars': star_svg,
         'mountains': encode(mtn, SHORE),
         'treeline': encode(trees, SHORE),
         'ground': encode(ground, SHORE),
         'village': encode(village, SHORE),
         'fx': dots(fx['spill'], ' opacity=".6"')
-              + dots(fx['win'], inner=anim('opacity', FLICKER[0], 7, 0, FLICKER[1]))
-              + dots(fx['glow'], ' opacity=".45"', anim('opacity', '.45;.3;.45;.38', 5, 2, FLICKER[1]))
+              + window_lights(fx['win'])
+              + lamp_glows(fx['glow'])
               + dots(fx['lamp']) + smoke,
     }
-    aurora_def = '<g id="au">' + encode(aur, SHORE) + '</g>'
     if report:
         for k, v in parts.items():
             print(f'  {k:10s}{len(v):7d}')
-        print(f'  {"aurora def":10s}{len(aurora_def):7d}')
     world = '<g id="w">' + ''.join(parts.values()) + '</g>'
 
-    # lake: the world mirrored about the shore at half height, cut in strips
-    # that sway apart from each other
-    strips, clips = [], []
-    sh = 8
-    sway = [3, 4.2, 3.6, 5]
-    for n, y0 in enumerate(range(SHORE, H, sh)):
-        clips.append(f'<clipPath id="c{n}"><rect x="-4" y="{y0}" width="{W + 8}" height="{sh}"/></clipPath>')
-        strips.append(
-            f'<g clip-path="url(#c{n})"><g>'
-            f'<use href="#w" transform="matrix(1 0 0 -.5 0 {SHORE * 1.5:g})"/>'
-            + anim('move', '0 0;1 0', sway[n % 4], round((n * 1.3) % 5, 1)) + '</g></g>')
+    # lake: the world mirrored once about the shore at half height, held still
+    strips = ['<g><use href="#w" transform="matrix(1 0 0 -.5 0 ' + f'{SHORE * 1.5:g})"/>'
+              + '</g>']
 
     rnd = random.Random(3)
     ripples = []
@@ -1076,7 +1119,7 @@ def build(report=False):
     svg = (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="100%" height="100%" '
         'preserveAspectRatio="xMidYMax slice" shape-rendering="crispEdges">'
-        f'<defs>{aurora_def}{aurora_clips}{world}{"".join(clips)}</defs>'
+        f'<defs>{world}</defs>'
         f'<rect width="{W}" height="{H}" fill="#04101f"/>'
         '<use href="#w"/>'
         + ''.join(strips)
@@ -1084,8 +1127,12 @@ def build(report=False):
         + paths(ice)
         # faint by default, so the lake stays calm even where nothing animates
         + f'<g opacity=".12">{paths(ripples)}'
-        + anim('opacity', '.08;.14;.2;.14', 6) + anim('move', '0 0;1 0;3 0;1 0', 6) + '</g>'
-        + extras + boat()
+        + '</g>'
+        + extras
+        # The boat crosses from past the left edge to past the right edge in about
+        # 80 s, stays out of sight for about 6 s, then starts again from the left.
+        + '<g>' + boat() + anim('move', '-252 0;180 0;180 0', 86, 30, '0;.93;1', discrete=False) + '</g>'
+        + snow()
         + (diagnostic() if os.environ.get('SCENE_DIAG') else '')
         + '</svg>'
     )

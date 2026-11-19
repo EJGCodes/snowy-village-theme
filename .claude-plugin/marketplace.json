@@ -1,5 +1,5 @@
 {
-  "name": "snowy-village",
+  "name": "snowy-village-theme",
   "owner": { "name": "EJGCodes" },
-  "plugins": [{ "name": "snowy-village", "source": "./" }]
+  "plugins": [{ "name": "snowy-village-theme", "source": "./" }]
 }
